@@ -1,32 +1,51 @@
 // index.js
-// where your node app starts
+const express = require("express");
+const path = require("path");
 
-// init project
-var express = require('express');
-var app = express();
+const app = express();
 
-// enable CORS (https://en.wikipedia.org/wiki/Cross-origin_resource_sharing)
-// so that your API is remotely testable by FCC 
-var cors = require('cors');
-app.use(cors({optionsSuccessStatus: 200}));  // some legacy browsers choke on 204
+// Statik dosyalar (boilerplate'te var)
+app.use("/public", express.static(path.join(__dirname, "public")));
 
-// http://expressjs.com/en/starter/static-files.html
-app.use(express.static('public'));
-
-// http://expressjs.com/en/starter/basic-routing.html
-app.get("/", function (req, res) {
-  res.sendFile(__dirname + '/views/index.html');
+// Ana sayfa (boilerplate views/index.html)
+app.get("/", (req, res) => {
+  res.sendFile(path.join(__dirname, "views", "index.html"));
 });
 
+// ---- Timestamp API ----
+app.get("/api/:date?", (req, res) => {
+  const { date: dateParam } = req.params;
 
-// your first API endpoint... 
-app.get("/api/hello", function (req, res) {
-  res.json({greeting: 'hello API'});
+  let date;
+  if (!dateParam) {
+    // Parametre yok -> şu anki zaman
+    date = new Date();
+  } else if (/^-?\d+$/.test(dateParam)) {
+    // Tamamen sayısal -> Unix ms olarak yorumla
+    // (FCC testleri milisaniye bekler)
+    date = new Date(parseInt(dateParam, 10));
+  } else {
+    // ISO vb. string tarih
+    date = new Date(dateParam);
+  }
+
+  if (date.toString() === "Invalid Date") {
+    return res.json({ error: "Invalid Date" });
+  }
+
+  res.json({
+    unix: date.getTime(),
+    utc: date.toUTCString(),
+  });
 });
 
+// ---- Lokal geliştirme için dinle ----
+const port = process.env.PORT || 3000;
+if (require.main === module) {
+  app.listen(port, () => {
+    console.log(`Local: http://localhost:${port}`);
+  });
+}
 
-
-// Listen on port set in environment variable or default to 3000
-var listener = app.listen(process.env.PORT || 3000, function () {
-  console.log('Your app is listening on port ' + listener.address().port);
-});
+// ---- Vercel (serverless) export ----
+module.exports = app;
